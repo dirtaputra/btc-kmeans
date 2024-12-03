@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bitcoin K-Means Clustering</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <h2>Bitcoin K-Means Clustering</h2>
+    <canvas id="chart" width="600" height="400"></canvas>
+    <script>
+        // Ambil data dari server Node.js
+        fetch('http://localhost:3000/data') // Arahkan ke endpoint yang benar
+            .then(response => response.json())
+            .then(data => {
+                // Prepare data for chart
+                const clusterColors = ['red', 'blue', 'green'];
+                const datasets = [];
+
+                for (let i = 0; i < 3; i++) {
+                    const clusterData = data.filter(d => d.cluster === i);
+                    const dataset = {
+                        label: `Cluster ${i}`,
+                        data: clusterData.map(d => ({ x: d.open, y: d.close })),
+                        backgroundColor: clusterColors[i],
+                        borderColor: clusterColors[i],
+                        fill: false
+                    };
+                    datasets.push(dataset);
+                }
+
+                // Buat grafik
+                new Chart(document.getElementById('chart'), {
+                    type: 'scatter',
+                    data: {
+                        datasets: datasets
+                    },
+                    options: {
+                        scales: {
+                            x: {
+                                title: {
+                                    display: true,
+                                    text: 'Open Price (USD)'
+                                }
+                            },
+                            y: {
+                                title: {
+                                    display: true,
+                                    text: 'Close Price (USD)'
+                                }
+                            }
+                        }
+                    }
+                });
+            })
+            .catch(error => {
+                console.error('Error fetching data:', error);
+            });
+    </script>
+</body>
+</html>
