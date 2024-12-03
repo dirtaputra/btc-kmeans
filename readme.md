@@ -75,8 +75,8 @@ Aplikasi ini dirancang untuk memberikan wawasan tentang pola harga Bitcoin berda
 ### **1. Clone Repository**
 Clone proyek ini ke komputer lokal Anda:
 ```bash
-git clone https://github.com/username/bitcoin-kmeans.git
-cd bitcoin-kmeans
+git clone https://github.com/dirtaputra/btc-kmeans.git
+cd btc-kmeans
 ```
 
 ### **2. Instal Dependencies**
