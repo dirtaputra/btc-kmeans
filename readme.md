@@ -137,6 +137,208 @@ Visualisasi scatter plot akan menampilkan:
 
 ---
 
+Berikut adalah penjelasan terperinci untuk setiap bagian kode Anda:
+
+---
+
+### **Import dan Setup**
+```javascript
+const express = require('express');  // Import library Express untuk membuat server HTTP.
+const cors = require('cors');       // Import library CORS untuk menangani permintaan lintas domain.
+const axios = require('axios');     // Import library Axios untuk melakukan HTTP request ke API eksternal.
+
+const app = express();  // Inisialisasi aplikasi Express.
+app.use(cors());         // Aktifkan middleware CORS untuk mengizinkan semua permintaan lintas domain.
+```
+
+**Penjelasan**:
+- **Express**: Digunakan untuk membuat server backend yang mendengarkan permintaan HTTP.
+- **CORS**: Digunakan agar browser mengizinkan akses dari domain berbeda (frontend ke backend).
+- **Axios**: Mempermudah pengambilan data dari API eksternal, seperti CoinGecko.
+
+---
+
+### **Fungsi untuk Menghitung Jarak Euclidean**
+```javascript
+function calculateDistance(point1, point2) {
+    return Math.sqrt(
+        point1.reduce((sum, value, index) => sum + Math.pow(value - point2[index], 2), 0)
+    );
+}
+```
+
+**Penjelasan**:
+- Menghitung jarak antara dua titik dalam ruang multidimensi.
+- Digunakan oleh algoritma **K-Means** untuk menentukan titik mana yang paling dekat dengan sebuah centroid.
+- **point1** dan **point2** adalah array angka, seperti `[open, close, volume]`.
+
+---
+
+### **Fungsi untuk Menentukan Cluster**
+```javascript
+function assignClusters(data, centroids) {
+    return data.map(point => {
+        const distances = centroids.map(centroid => calculateDistance(point, centroid));
+        return distances.indexOf(Math.min(...distances));
+    });
+}
+```
+
+**Penjelasan**:
+- **data**: Array data yang ingin dikelompokkan, seperti `[open, close, volume]`.
+- **centroids**: Array centroid awal.
+- Untuk setiap data (`point`):
+  1. Hitung jarak dari data ke semua centroid menggunakan `calculateDistance`.
+  2. Tentukan cluster terdekat berdasarkan centroid dengan jarak terpendek.
+
+---
+
+### **Fungsi untuk Memperbarui Centroid**
+```javascript
+function updateCentroids(data, clusters, K) {
+    const newCentroids = Array(K).fill(null).map(() => Array(data[0].length).fill(0));
+    const counts = Array(K).fill(0);
+
+    data.forEach((point, index) => {
+        const cluster = clusters[index];
+        counts[cluster]++;
+        point.forEach((value, dimension) => {
+            newCentroids[cluster][dimension] += value;
+        });
+    });
+
+    return newCentroids.map((centroid, index) =>
+        centroid.map(value => (counts[index] === 0 ? 0 : value / counts[index]))
+    );
+}
+```
+
+**Penjelasan**:
+- Menghitung centroid baru berdasarkan rata-rata semua titik dalam cluster.
+1. **`newCentroids`**: Array kosong untuk menyimpan centroid baru.
+2. Untuk setiap data:
+   - Tambahkan data ke centroid cluster yang sesuai.
+   - Hitung rata-rata di akhir untuk menentukan lokasi centroid baru.
+
+---
+
+### **Fungsi untuk Mengambil Data Harga Bitcoin**
+```javascript
+async function fetchBitcoinData() {
+    try {
+        const response = await axios.get('https://api.coingecko.com/api/v3/coins/bitcoin/market_chart', {
+            params: {
+                vs_currency: 'usd',
+                days: 30, // Data 30 hari terakhir
+            },
+        });
+
+        const prices = response.data.prices.map((price, index) => ({
+            day: index + 1,
+            open: price[1],
+            close: price[1] + Math.random() * 100, // Simulasi harga penutupan
+            volume: Math.random() * 5000, // Simulasi volume perdagangan
+        }));
+
+        return prices;
+    } catch (error) {
+        console.error('Error fetching Bitcoin data:', error);
+        return [];
+    }
+}
+```
+
+**Penjelasan**:
+- Mengambil data harga Bitcoin selama 30 hari terakhir dari CoinGecko.
+- **response.data.prices**: Berisi array harga untuk setiap hari.
+- Data diformat menjadi objek:
+  - **`open`**: Harga pembukaan dari API.
+  - **`close`**: Harga penutupan disimulasikan.
+  - **`volume`**: Volume perdagangan disimulasikan.
+
+---
+
+### **Fungsi untuk Menjalankan K-Means**
+```javascript
+async function analyzeBitcoinData() {
+    const data = await fetchBitcoinData();
+
+    if (data.length === 0) {
+        console.log('No data available.');
+        return [];
+    }
+
+    const dataset = data.map(d => [d.open, d.close, d.volume]);
+
+    // Jalankan K-Means dengan K=3
+    const K = 3;
+    const clusters = assignClusters(dataset, dataset.slice(0, K));
+    const centroids = updateCentroids(dataset, clusters, K);
+
+    const results = data.map((d, i) => ({
+        ...d,
+        cluster: clusters[i],
+    }));
+
+    return {
+        results,
+        centroids
+    };
+}
+```
+
+**Penjelasan**:
+1. Ambil data dari API dengan **fetchBitcoinData**.
+2. Siapkan dataset dalam bentuk `[open, close, volume]`.
+3. Jalankan algoritma K-Means:
+   - Tentukan **K=3** untuk 3 cluster.
+   - Tentukan cluster awal dengan `assignClusters`.
+   - Perbarui centroid dengan `updateCentroids`.
+4. Gabungkan hasil cluster dengan data asli.
+
+---
+
+### **Endpoint Backend**
+```javascript
+app.get('/data', async (req, res) => {
+    const { results } = await analyzeBitcoinData();
+    res.json(results);
+});
+```
+
+**Penjelasan**:
+- Membuat endpoint `/data` yang akan:
+  1. Menjalankan analisis K-Means melalui **analyzeBitcoinData**.
+  2. Mengirimkan hasil dalam format JSON ke frontend.
+
+---
+
+### **Server**
+```javascript
+app.use(express.static('public'));  // Menyajikan file HTML dan JS frontend.
+app.listen(3000, () => {
+    console.log("Server running on http://localhost:3000");
+});
+```
+
+**Penjelasan**:
+- **`express.static('public')`**:
+  - Menyajikan file statis seperti HTML, CSS, dan JavaScript dari folder `public`.
+- **`app.listen(3000)`**:
+  - Menjalankan server di port `3000`.
+  - Akses melalui `http://localhost:3000`.
+
+---
+
+### **Kesimpulan**
+- **Fungsi Utama**:
+  - Backend mengambil data harga Bitcoin dari API CoinGecko.
+  - Data diolah menggunakan algoritma K-Means untuk menemukan pola.
+  - Hasil dikirim ke frontend melalui endpoint `/data`.
+- **Server**:
+  - Menyediakan data dan frontend untuk memvisualisasikan hasil clustering.
+
+
 ## **Lisensi**
 Proyek ini dilisensikan di bawah [MIT License](LICENSE).
 
